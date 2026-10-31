@@ -167,7 +167,7 @@ void frameCopyTolastFrame(const Frame* frame, Frame* lastFrame) {
 void initializeCamera(void)
 {
     g_cam = new camera::Cam();
-    g_cam->init(400, 100, [](const Frame& frame) {
+    g_cam->init(800, 100, [](const Frame& frame) {
         // Handle the received frame (for demonstration, we just print its size)
         char msg[256];
         snprintf(msg, sizeof(msg), "frame %d", g_frameCounter++);

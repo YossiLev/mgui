@@ -1,6 +1,9 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <commctrl.h>
+
+#define WM_GUI_REPAINT_IMAGE (WM_APP + 1)
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -411,6 +414,11 @@ static void winDrawImagePixels(WWidget *w, HDC dc);
 
 LRESULT CALLBACK imageControlWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
+        case WM_GUI_REPAINT_IMAGE:
+            InvalidateRect(hwnd, NULL, TRUE);
+            UpdateWindow(hwnd);
+            return 0;
+
         case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC dc = BeginPaint(hwnd, &ps);
@@ -757,7 +765,9 @@ void WinGuiCopyImage(const char *id, const Frame *frame) {
     w->imageWidth = frame->width;
     w->imageHeight = frame->height;
 
-    if (w->hwnd) InvalidateRect(w->hwnd, NULL, FALSE);
+    if (w->hwnd) {
+        PostMessageA(w->hwnd, WM_GUI_REPAINT_IMAGE, 0, 0);
+    }
 }
 void WinGuiBringToFront(const char *id) {
     WWidget *w = find(id);
@@ -771,7 +781,7 @@ void WinGuiBringToFront(const char *id) {
 void WinGuiRepaintImage(const char *id) {
     WWidget *w = find(id);
     if (!w || !w->hwnd) return;
-    InvalidateRect(w->hwnd, NULL, TRUE);
+    PostMessageA(w->hwnd, WM_GUI_REPAINT_IMAGE, 0, 0);
 }
 
 void WinGuiLayout(void)
