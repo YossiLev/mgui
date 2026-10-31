@@ -45,11 +45,11 @@ static void onChange(const char *id) {
     
     if (strcmp(id, "exposure") == 0) {
         char msg[256];
-        snprintf(msg, sizeof(msg), "Exposure %s", GuiGetText(id));
+        snprintf(msg, sizeof(msg), "Exposure %d", GuiGetValue(id));
         GuiSetText("exposureValue", msg);
     } else if (strcmp(id, "pageLength") == 0) {
         char msg[256];
-        snprintf(msg, sizeof(msg), "Page Length %s", GuiGetText(id));
+        snprintf(msg, sizeof(msg), "Page Length %d", GuiGetValue(id));
         GuiSetText("pageLengthValue", msg);
     }
 }

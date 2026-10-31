@@ -724,6 +724,13 @@ void WinGuiSetColors(const char *id, const char *pc, const char *bc) {
     } else if (w->hOldPen != hOldPen) {
         DeleteObject(hOldPen);
     }
+    HBRUSH hBrush = CreateSolidBrush(parseColor(bc, RGB(255, 255, 255)));
+    HBRUSH hOldBrush = (HBRUSH)SelectObject(w->hdc, hBrush);
+    if (w->hOldBrush == NULL) {
+        w->hOldBrush = hOldBrush;
+    } else if (w->hOldBrush != hOldBrush) {
+        DeleteObject(hOldBrush);
+    }
 }
 void WinGuiMoveTo(const char *id, int x, int y) {
     WWidget *w = find(id);

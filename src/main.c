@@ -33,7 +33,7 @@ static void onChange(const char *id) {
 
     if (id[0] == 'n') {
         char msg[256];
-        snprintf(msg, sizeof(msg), "Input changed: %s", GuiGetText(id));
+        snprintf(msg, sizeof(msg), "Input changed: %d", GuiGetValue(id));
         GuiSetText("status", msg);
     } else if (id[0] == 'g') {
         char msg[256];
