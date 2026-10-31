@@ -748,15 +748,15 @@ void WinGuiSetColors(const char *id, const char *pc, const char *bc) {
 }
 void WinGuiMoveTo(const char *id, int x, int y) {
     WWidget *w = find(id);
-    if (!w) return;
-    MoveToEx(w->hdc, x, y, NULL);    
+    if (!w) return;   
+    MoveToEx(w->hdc, x, w->ph - 1 - y, NULL);    
 }
 void WinGuiLineTo(const char *id, int x, int y) {
     WWidget *w = find(id);
     if (!w) return;
-    LineTo(w->hdc, x, y);     
+    LineTo(w->hdc, x, w->ph - 1 - y);     
 }
-void WinGuiCopyImage(const char *id, const Frame *frame) {
+void WinGuiCopyImage(const char *id, const Frame8 *frame) {
     WWidget *w = find(id);
     if (!w || !frame || !frame->pixels || frame->width <= 0 || frame->height <= 0)
         return;

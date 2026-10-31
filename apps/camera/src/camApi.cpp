@@ -1,13 +1,12 @@
 #include "camApi.h"
 
 #include <chrono>
-#include <random>
+//#include <random>
 #include <utility>
 
 namespace camera {
 
 Cam::Cam() {}
-    
 
 Cam::~Cam() {
     stop();
@@ -42,19 +41,22 @@ void Cam::stop() {
 }
 
 void Cam::run() {
-    std::random_device randomDevice;
-    std::mt19937 generator(randomDevice());
-    std::uniform_int_distribution<int> pixelDistribution(0, 255);
-
+    // std::random_device randomDevice;
+    // std::mt19937 generator(randomDevice());
+    // std::uniform_int_distribution<int> pixelDistribution(0, 255);
+    int center = width_ / 2;
     while (running_.load()) {
         Frame frame;
         frame.width = width_;
         frame.height = height_;
-        frame.pixels = new char[static_cast<std::size_t>(width_) * height_];
+        frame.pixels = new u_int16_t[static_cast<std::size_t>(width_) * height_];
 
         for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(width_) * height_; ++i) {
-            frame.pixels[i] = static_cast<std::uint8_t>(pixelDistribution(generator));
+            int ii = i % width_;
+            int t = 4096 - abs((center - ii) * (center - ii) / 64);
+            frame.pixels[i] = t;
         }
+        center = (center + 10) % width_;
 
         try {
             callback_(frame);

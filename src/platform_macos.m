@@ -625,7 +625,7 @@ void MacGuiSetColors(const char *id,const char *pen,const char *background) {
 
 void MacGuiMoveTo(const char *id,int x,int y) {
     MWidget *w = find(id);
-    if (w) { w->currentX = x; w->currentY = y; }
+    if (w) { w->currentX = x; w->currentY = w->height - 1 - y; }
     // NSLog(@"[MacGUI] MoveTo x=%@ y=%@ id=%@",
     //       @(x), @(y), id ? [NSString stringWithUTF8String:id] : @"-");
 }
@@ -640,11 +640,11 @@ void MacGuiLineTo(const char *id,int x,int y) {
     if (!w->segments) return;
     // NSLog(@"[MacGUI] LineTo x=%@ y=%@ xp=%@ yp=%@ id=%@",
     //       @(x), @(y), @(w->currentX), @(w->currentY), id ? [NSString stringWithUTF8String:id] : @"-");
-    w->segments[w->segmentCount++] = (MSegment){w->currentX, w->currentY, x, y};
-    w->currentX = x; w->currentY = y;
+    w->segments[w->segmentCount++] = (MSegment){w->currentX, w->currentY, x, w->height - 1 - y};
+    w->currentX = x; w->currentY = w->height - 1 - y;
 }
 
-void MacGuiCopyImage(const char *id, const Frame *frame) {
+void MacGuiCopyImage(const char *id, const Frame8 *frame) {
     MWidget *w = find(id);
     if (!w || !w->view || !frame || !frame->pixels || frame->width <= 0 || frame->height <= 0) return;
 

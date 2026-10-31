@@ -58,9 +58,9 @@ static void onChange(const char *id) {
 }
  static void draw_chart(const char *id, int chart[1024]) {
 
-    GuiMoveTo(id, 0, chart[0] / 50);    
+    GuiMoveTo(id, 0, chart[0] >> 5);    
     for (int i = 1; i < 1024; i++) {
-        GuiLineTo(id, i, chart[i] / 50);
+        GuiLineTo(id, i, chart[i] >> 5);
     }
 }
 
@@ -139,7 +139,7 @@ void initializeData(void)
         }
     }
     for (int j = 0; j < 1024; j++) {
-        charts[0][j] = sin(j * 5 * 6.28 / 1024) * 2000 + 2000;
+        charts[0][j] = (sin(j * 5 * 6.28 / 1024) * 2048 + 2048); // Scale to fit the image height
     }
 
     GuiSetText("command", "Hello");
@@ -149,7 +149,7 @@ void initializeData(void)
 
 void frameToChart(const Frame& frame, int chart[1024]) {
     for (std::uint32_t i = 0; i < std::min(frame.width, 1024); ++i) {
-        chart[i] = static_cast<int>(frame.pixels[i]) * 10;
+        chart[i] = static_cast<int>(frame.pixels[i]);
     }
 }
 
@@ -162,14 +162,25 @@ void frameCopyTolastFrame(const Frame* frame, Frame* lastFrame) {
     }
     lastFrame->width = frame->width;
     lastFrame->height = frame->height;
-    lastFrame->pixels = new char[frame->width * frame->height];
-    memcpy(lastFrame->pixels, frame->pixels, frame->width * frame->height);
+    lastFrame->pixels = new u_int16_t[frame->width * frame->height];
+    memcpy(lastFrame->pixels, frame->pixels, frame->width * frame->height * sizeof(u_int16_t));
+}
+
+Frame8 *makeFrame8(const Frame* frame) {
+    Frame8 *frame8 = new Frame8();
+    frame8->width = frame->width;
+    frame8->height = frame->height;
+    frame8->pixels = new u_int8_t[frame->width * frame->height];
+    for (std::uint32_t i = 0; i < frame->width * frame->height; ++i) {
+        frame8->pixels[i] = static_cast<u_int8_t>(frame->pixels[i] >> 5); // Scale down to 8 bits
+    }
+    return frame8;
 }
 
 void initializeCamera(void)
 {
     g_cam = new camera::Cam();
-    g_cam->init(800, 100, [](const Frame& frame) {
+    g_cam->init(1024, 100, [](const Frame& frame) {
         {
             std::lock_guard<std::mutex> chartLock(g_chartMutex);
             frameToChart(frame, charts[0]);
@@ -178,7 +189,10 @@ void initializeCamera(void)
             std::lock_guard<std::mutex> frameLock(g_frameMutex);
             frameCopyTolastFrame(&frame, &g_lastFrame);
         }
-        GuiCopyImage("image1", &frame);
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Frame %d", ++g_frameCounter);
+        GuiSetText("status", msg);
+        GuiCopyImage("image1", makeFrame8(&frame));
         GuiRepaintImage("image2");
     });
     // Simulate camera initialization

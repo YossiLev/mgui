@@ -19,7 +19,7 @@ extern void WinGuiStartPaint(const char *);
 extern void WinGuiSetColors(const char *, const char *, const char *);
 extern void WinGuiMoveTo(const char *, int, int);
 extern void WinGuiLineTo(const char *, int, int);
-extern void WinGuiCopyImage(const char *, const Frame *);
+extern void WinGuiCopyImage(const char *, const Frame8 *);
 extern void WinGuiBringToFront(const char *);
 extern void WinGuiRepaintImage(const char *);
 extern void WinGuiSetText(const char *, const char *);
@@ -51,7 +51,7 @@ extern void MacGuiStartPaint(const char *);
 extern void MacGuiSetColors(const char *, const char *, const char *);
 extern void MacGuiMoveTo(const char *, int, int);
 extern void MacGuiLineTo(const char *, int, int);
-extern void MacGuiCopyImage(const char *, const Frame *);
+extern void MacGuiCopyImage(const char *, const Frame8 *);
 extern void MacGuiBringToFront(const char *);
 extern void MacGuiRepaintImage(const char *);
 extern void MacGuiSetText(const char *, const char *);
@@ -122,7 +122,7 @@ void GuiStartPaint(const char *i){F(StartPaint)(i);}
 void GuiSetColors(const char *i, const char *p, const char *b){F(SetColors)(i,p,b);}
 void GuiMoveTo(const char *i, int x, int y){F(MoveTo)(i,x,y);}
 void GuiLineTo(const char *i, int x, int y){F(LineTo)(i,x,y);}
-void GuiCopyImage(const char *i, const Frame *f){F(CopyImage)(i,f);}
+void GuiCopyImage(const char *i, const Frame8 *f){F(CopyImage)(i,f);}
 void GuiBringToFront(const char *i){F(BringToFront)(i);}
 void GuiRepaintImage(const char *i){F(RepaintImage)(i);}
 void GuiSetText(const char *i,const char *t){F(SetText)(i,t);}
