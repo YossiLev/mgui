@@ -64,6 +64,8 @@ static HWND g_main;
 static WWidget *g_root;
 static WWidget *g_current;
 static int g_next_id = 1000;
+static CRITICAL_SECTION winImageCriticalSection;
+static int winImageCriticalSectionInitialized = 0;
 
 static WWidget *find_in_tree(WWidget *node, const char *id)
 {
@@ -439,6 +441,11 @@ LRESULT CALLBACK imageControlWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
 
 int WinGuiCreateApp(const char *title, int width, int height)
 {
+    if (!winImageCriticalSectionInitialized) {
+        InitializeCriticalSection(&winImageCriticalSection);
+        winImageCriticalSectionInitialized = 1;
+    }
+
     g_instance = GetModuleHandleA(NULL);
 
     INITCOMMONCONTROLSEX ic = { sizeof(ic), ICC_BAR_CLASSES };
@@ -855,6 +862,3 @@ static void winDrawImagePixels(WWidget *w, HDC dc) {
     LeaveCriticalSection(&winImageCriticalSection);
     free(bmi);
 }
-
-static CRITICAL_SECTION winImageCriticalSection;
-static int winImageCriticalSectionInitialized;
