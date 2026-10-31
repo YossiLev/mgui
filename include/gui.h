@@ -13,6 +13,13 @@ extern "C" {
 #error "PLATFORM must be defined"
 #endif
 
+
+typedef struct _Frame {
+    int width;
+    int height;
+    char *pixels;
+} Frame;
+
 typedef void (*GuiCallback)(const char *id);
 
 int  GuiCreateApp(const char *title, int width, int height);
@@ -40,8 +47,9 @@ void GuiStartPaint(const char *i);
 void GuiSetColors(const char *i, const char *p, const char *b);
 void GuiMoveTo(const char *i, int x, int y);
 void GuiLineTo(const char *i, int x, int y);
-void GuiCopyImage(const char *i, const char *p);
+void GuiCopyImage(const char *i, const Frame *f);
 void GuiBringToFront(const char *i);
+void GuiRepaintImage(const char *i);
 
 void GuiSetText(const char *id, const char *text);
 const char *GuiGetText(const char *id);

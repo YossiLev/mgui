@@ -144,4 +144,9 @@ void LinuxGuiSetVisible(const char *id,int visible)
     LWidget *x=find(id); if(x)gtk_widget_set_visible(x->widget,visible);
 }
 void LinuxGuiLayout(void) {}
+void LinuxGuiRepaintImage(const char *id)
+{
+    LWidget *x = find(id);
+    if (x && x->widget) gtk_widget_queue_draw(x->widget);
+}
 void LinuxGuiRun(void) { while(g_main_context_iteration(NULL,TRUE)); }

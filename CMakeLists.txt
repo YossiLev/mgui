@@ -1,8 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
-project(mgui C)
+project(mgui C CXX)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Choose exactly one:
 #   cmake -S . -B build -DGUI_PLATFORM=WINDOWS
@@ -25,9 +27,11 @@ message(STATUS "GUI_PLATFORM = ${GUI_PLATFORM}")
 if(DEFINED GUI_APP)
     if(GUI_APP STREQUAL "CAMERA")
         add_executable(mgui
-            apps/camera/src/main.c
+            apps/camera/src/main.cpp
+            apps/camera/src/camApi.cpp
             src/gui.c
         )
+        set_source_files_properties(apps/camera/src/main.c PROPERTIES LANGUAGE CXX)
     else()
         message(FATAL_ERROR "Unknown GUI_APP: ${GUI_APP}")
     endif()
@@ -62,4 +66,6 @@ else()
     message(FATAL_ERROR "Unknown GUI_PLATFORM: ${GUI_PLATFORM}")
 endif()
 
-target_include_directories(mgui PRIVATE include)
+target_include_directories(mgui PRIVATE include 
+    apps/camera/include
+)

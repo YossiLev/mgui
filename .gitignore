@@ -5,3 +5,5 @@ build-macos/*
 build-macos/**
 build-current/*
 build-current/**
+build-camera/*
+

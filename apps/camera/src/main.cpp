@@ -2,15 +2,19 @@
 #include <string.h>
 #include <math.h>
 #include "gui.h"
+#include "camApi.h"
 
 // global data for the GUI
 int charts[5][1024];
+camera::Cam *g_cam = NULL;
+int g_frameCounter = 0;
+Frame g_lastFrame = {0};
 
 static void onClick(const char *id) {
     if (strcmp(id, "send") == 0) {
         const char *command = GuiGetText("command");
         char msg[256];
-        char *response = "ok"; // Simulated response for demonstration
+        const char *response = "ok"; // Simulated response for demonstration
         snprintf(msg, sizeof(msg), "%s -> %s", command, response);
         GuiSetText("response", msg);
     }
@@ -18,8 +22,15 @@ static void onClick(const char *id) {
 
 static void onClickCam(const char *id) {
     if (strcmp(id, "startCam") == 0) {
+        if (g_cam) {
+            g_frameCounter = 0;
+            g_cam->start();
+        }
         GuiSetText("status", "Start Camera");
     } else if (strcmp(id, "stopCam") == 0) {
+        if (g_cam) {
+            g_cam->stop();
+        }
         GuiSetText("status", "Stop Camera");
     } else if (strcmp(id, "resetCam") == 0) {
         GuiSetText("status", "Reset Camera");
@@ -36,6 +47,10 @@ static void onChange(const char *id) {
         char msg[256];
         snprintf(msg, sizeof(msg), "Exposure %s", GuiGetText(id));
         GuiSetText("exposureValue", msg);
+    } else if (strcmp(id, "pageLength") == 0) {
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Page Length %s", GuiGetText(id));
+        GuiSetText("pageLengthValue", msg);
     }
 }
  static void draw_chart(const char *id, int chart[1024]) {
@@ -48,13 +63,18 @@ static void onChange(const char *id) {
 
 static void cbRepaintImage(const char *id) {
     GuiStartPaint(id);
-    if (strcmp(id, "image1") == 0) {
-        GuiSetColors("image1", "#00ff00", "#dd36b3");
-        draw_chart("image1", charts[0]);
-    } else if (strcmp(id, "image2") == 0) {
-        GuiSetColors("image2", "#ff0000", "#0f00ff");
-        GuiMoveTo("image2", 210, 10);
-        GuiLineTo("image2", 310, 50);
+    if (strcmp(id, "image2") == 0) {
+        GuiSetColors("image2", "#00ff00", "#dd36b3");
+        draw_chart("image2", charts[0]);
+    } else if (strcmp(id, "image1") == 0) {
+        if (g_lastFrame.pixels) {
+            Frame frameToDraw = g_lastFrame;
+            GuiCopyImage("image1", &frameToDraw);
+        } else {
+            GuiSetColors("image1", "#ff0000", "#0f00ff");
+            GuiMoveTo("image1", 210, 10);
+            GuiLineTo("image1", 310, 50);
+        }
     }
     GuiBringToFront(id);
 }
@@ -73,13 +93,17 @@ void createGui(void)
 
         GuiEndHorizontal();
 
-
-
         GuiBeginGroup("Parameters");
-            GuiBeginVertical();
-                GuiCreateLabel("exposureValue", "Exposure");
-                GuiCreateSlider("exposure", "", 0, 1000, 50, onChange);
-            GuiEndVertical();
+            GuiBeginHorizontal();
+                GuiBeginVertical();
+                    GuiCreateLabel("exposureValue", "Exposure");
+                    GuiCreateSlider("exposure", "", 0, 500, 50, onChange);
+                GuiEndVertical();
+                GuiBeginVertical();
+                    GuiCreateLabel("pageLengthValue", "Page Length");
+                    GuiCreateSlider("pageLength", "", 0, 500, 50, onChange);
+                GuiEndVertical();
+            GuiEndHorizontal();
 
         GuiEndGroup();
         GuiBeginGroup("Serial Command");
@@ -94,9 +118,6 @@ void createGui(void)
 
             GuiEndHorizontal();
         GuiEndGroup();
-
-
-
 
         GuiCreateLabel("status", "Ready");
       
@@ -124,15 +145,43 @@ void initializeData(void)
     GuiSetText("status", "Ready");
 }
 
+void frameToChart(const Frame& frame, int chart[1024]) {
+    for (std::uint32_t i = 0; i < std::min(frame.width, 1024); ++i) {
+        chart[i] = static_cast<int>(frame.pixels[i]) * 10;
+    }
+}
+
+void frameCopyTolastFrame(const Frame* frame, Frame* lastFrame) {
+    if (!lastFrame) {
+        lastFrame = new Frame();
+    }
+    if (lastFrame->pixels) {
+        delete[] lastFrame->pixels;
+    }
+    lastFrame->width = frame->width;
+    lastFrame->height = frame->height;
+    lastFrame->pixels = new char[frame->width * frame->height];
+    memcpy(lastFrame->pixels, frame->pixels, frame->width * frame->height);
+}
+
 void initializeCamera(void)
 {
+    g_cam = new camera::Cam();
+    g_cam->init(400, 100, [](const Frame& frame) {
+        // Handle the received frame (for demonstration, we just print its size)
+        char msg[256];
+        snprintf(msg, sizeof(msg), "frame %d", g_frameCounter++);
+        GuiSetText("status", msg);
+        frameToChart(frame, charts[0]);
+        frameCopyTolastFrame(&frame, &g_lastFrame);
+        GuiRepaintImage("image1");
+        GuiRepaintImage("image2");
+    });
     // Simulate camera initialization
     GuiSetText("status", "Camera initialized");
 }
 int main(void)
 {
-
-
     initializeData();
 
     initializeCamera();
@@ -140,5 +189,9 @@ int main(void)
     createGui();
     GuiRun();
     
+    if (g_cam) {
+        delete g_cam;
+    }
+
     return 0;
 }

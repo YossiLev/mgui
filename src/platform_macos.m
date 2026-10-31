@@ -43,6 +43,9 @@ struct MWidget {
     char bgColor[8];
     int currentX;
     int currentY;
+    unsigned char *imagePixels;
+    int imageWidth;
+    int imageHeight;
     MSegment *segments;
     size_t segmentCount;
     size_t segmentCapacity;
@@ -148,6 +151,37 @@ extern void MacGuiLayout(void);
     [background setFill]; NSRectFill(self.bounds);
 
     if (!self.widget) return;
+
+    if (self.widget->imagePixels && self.widget->imageWidth > 0 && self.widget->imageHeight > 0) {
+        CGColorSpaceRef graySpace = CGColorSpaceCreateDeviceGray();
+        CGContextRef context = CGBitmapContextCreate(
+            self.widget->imagePixels,
+            self.widget->imageWidth,
+            self.widget->imageHeight,
+            8,
+            self.widget->imageWidth,
+            graySpace,
+            (CGBitmapInfo)kCGImageAlphaNone);
+        if (context) {
+            CGImageRef image = CGBitmapContextCreateImage(context);
+            if (image) {
+                CGContextRef drawContext = [[NSGraphicsContext currentContext] CGContext];
+                CGContextSaveGState(drawContext);
+                CGContextSetBlendMode(drawContext, kCGBlendModeCopy);
+                CGRect nativeRect = CGRectMake(
+                    0,
+                    0,
+                    self.widget->imageWidth,
+                    self.widget->imageHeight);
+                CGContextDrawImage(drawContext, nativeRect, image);
+                CGContextRestoreGState(drawContext);
+                CGImageRelease(image);
+            }
+            CGContextRelease(context);
+        }
+        CGColorSpaceRelease(graySpace);
+    }
+
     if (self.widget->cb) self.widget->cb(self.widget->id);
 
     unsigned int pr = 0, pg = 0, pb = 0;
@@ -448,6 +482,8 @@ void MacGuiCreateSlider(const char *id,const char *title,int min,int max,int val
         NSTextField *label = [NSTextField labelWithString:[NSString stringWithUTF8String:title]];
         w->labelView = label;
         [mainContent addSubview:label];
+    } else {
+        w->labelView = nil;
     }
 
     CallbackTarget *target = [CallbackTarget new]; target.widget = w;
@@ -608,11 +644,40 @@ void MacGuiLineTo(const char *id,int x,int y) {
     w->currentX = x; w->currentY = y;
 }
 
-void MacGuiCopyImage(const char *id,const char *path) { (void)id; (void)path; }
+void MacGuiCopyImage(const char *id, const Frame *frame) {
+    MWidget *w = find(id);
+    if (!w || !w->view || !frame || !frame->pixels || frame->width <= 0 || frame->height <= 0) return;
+
+    MWidget *widget = w;
+    int width = frame->width;
+    int height = frame->height;
+    size_t pixelCount = (size_t)width * (size_t)height;
+    unsigned char *pixels = malloc(pixelCount);
+    if (!pixels) return;
+    memcpy(pixels, frame->pixels, pixelCount);
+
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (widget->imagePixels) free(widget->imagePixels);
+        widget->imagePixels = pixels;
+        widget->imageWidth = width;
+        widget->imageHeight = height;
+        [widget->view setNeedsDisplay:YES];
+    });
+}
 
 void MacGuiBringToFront(const char *id) {
     MWidget *w = find(id);
     if (w && w->view) [w->view setNeedsDisplay:YES];
+}
+
+void MacGuiRepaintImage(const char *id) {
+    MWidget *w = find(id);
+    if (!w || !w->view) return;
+
+    NSView *view = w->view;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [view setNeedsDisplay:YES];
+    });
 }
 
 void MacGuiLayout(void) {

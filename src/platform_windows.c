@@ -44,6 +44,9 @@ struct WWidget {
     int pw, ph;
     PAINTSTRUCT ps;
     HDC hdc;
+    unsigned char *imagePixels;
+    int imageWidth;
+    int imageHeight;
     HPEN hOldPen;
     HBRUSH hOldBrush;
 
@@ -404,20 +407,26 @@ static LRESULT CALLBACK wndproc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProcA(hwnd, msg, wp, lp);
 }
 
+static void winDrawImagePixels(WWidget *w, HDC dc);
+
 LRESULT CALLBACK imageControlWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-
     switch (msg) {
-
-        case WM_PAINT:
-            {
-                WWidget *w = find_in_tree_by_hwnd(g_root, hwnd);
-                if (w) {
-                    (w->callback)(w->id);
-                    return 0;
+        case WM_PAINT: {
+            PAINTSTRUCT ps;
+            HDC dc = BeginPaint(hwnd, &ps);
+            WWidget *w = find_in_tree_by_hwnd(g_root, hwnd);
+            if (w) {
+                winDrawImagePixels(w, dc);
+                if (w->callback) {
+                    w->hdc = dc;
+                    w->ps = ps;
+                    w->callback(w->id);
                 }
             }
+            EndPaint(hwnd, &ps);
+            return 0;
+        }
     }
-
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
@@ -694,7 +703,7 @@ void WinGuiSetVisible(const char *id, int visible)
 void WinGuiStartPaint(const char *id) {
     WWidget *w = find(id);
     if (!w) return;
-    w->hdc = BeginPaint(w->hwnd, &(w->ps));   
+    (void)w;
 }
 
 static COLORREF parseColor(const char *s, COLORREF fallback) {
@@ -726,7 +735,23 @@ void WinGuiLineTo(const char *id, int x, int y) {
     if (!w) return;
     LineTo(w->hdc, x, y);     
 }
-void WinGuiCopyImage(const char *id, const char *im) {}
+void WinGuiCopyImage(const char *id, const Frame *frame) {
+    WWidget *w = find(id);
+    if (!w || !frame || !frame->pixels || frame->width <= 0 || frame->height <= 0)
+        return;
+
+    size_t pixelCount = (size_t)frame->width * (size_t)frame->height;
+    unsigned char *pixels = (unsigned char *)malloc(pixelCount);
+    if (!pixels) return;
+    memcpy(pixels, frame->pixels, pixelCount);
+
+    if (w->imagePixels) free(w->imagePixels);
+    w->imagePixels = pixels;
+    w->imageWidth = frame->width;
+    w->imageHeight = frame->height;
+
+    if (w->hwnd) InvalidateRect(w->hwnd, NULL, FALSE);
+}
 void WinGuiBringToFront(const char *id) {
     WWidget *w = find(id);
     if (!w) return;
@@ -734,6 +759,12 @@ void WinGuiBringToFront(const char *id) {
         HPEN otherPen = (HPEN)SelectObject(w->hdc, w->hOldPen);
         DeleteObject(otherPen);
     };
+}
+
+void WinGuiRepaintImage(const char *id) {
+    WWidget *w = find(id);
+    if (!w || !w->hwnd) return;
+    InvalidateRect(w->hwnd, NULL, TRUE);
 }
 
 void WinGuiLayout(void)
@@ -769,4 +800,36 @@ void WinGuiRun(void)
     free(g_root);
     g_root = NULL;
     g_current = NULL;
+}
+
+static void winDrawImagePixels(WWidget *w, HDC dc) {
+    if (!w || !w->imagePixels || w->imageWidth <= 0 || w->imageHeight <= 0) return;
+
+    size_t bmiSize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
+    BITMAPINFO *bmi = (BITMAPINFO *)calloc(1, bmiSize);
+    if (!bmi) return;
+
+    bmi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bmi->bmiHeader.biWidth = w->imageWidth;
+    bmi->bmiHeader.biHeight = -w->imageHeight;
+    bmi->bmiHeader.biPlanes = 1;
+    bmi->bmiHeader.biBitCount = 8;
+    bmi->bmiHeader.biCompression = BI_RGB;
+    bmi->bmiHeader.biSizeImage = (DWORD)((size_t)w->imageWidth * w->imageHeight);
+
+    for (int i = 0; i < 256; ++i) {
+        bmi->bmiColors[i].rgbRed = (BYTE)i;
+        bmi->bmiColors[i].rgbGreen = (BYTE)i;
+        bmi->bmiColors[i].rgbBlue = (BYTE)i;
+    }
+
+    SetDIBitsToDevice(dc,
+                      0, 0,
+                      w->imageWidth, w->imageHeight,
+                      0, 0,
+                      0, w->imageHeight,
+                      w->imagePixels,
+                      bmi,
+                      DIB_RGB_COLORS);
+    free(bmi);
 }
