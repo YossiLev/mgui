@@ -22,11 +22,21 @@ endif()
 
 message(STATUS "GUI_PLATFORM = ${GUI_PLATFORM}")
 
-add_executable(mgui
-    src/main.c
-    src/gui.c
-)
-
+if(DEFINED GUI_APP)
+    if(GUI_APP STREQUAL "CAMERA")
+        add_executable(mgui
+            apps/camera/src/main.c
+            src/gui.c
+        )
+    else()
+        message(FATAL_ERROR "Unknown GUI_APP: ${GUI_APP}")
+    endif()
+else()
+    add_executable(mgui
+        src/main.c
+        src/gui.c
+    )
+endif()
 if(GUI_PLATFORM STREQUAL "WINDOWS")
     target_sources(mgui PRIVATE src/platform_windows.c)
     target_compile_definitions(mgui PRIVATE PLATFORM=PLATFORM_WINDOWS)

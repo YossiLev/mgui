@@ -85,16 +85,16 @@ extern void MacGuiLayout(void);
 
 - (NSView *)hitTest:(NSPoint)point {
     NSView *result = [super hitTest:point];
-    if (result == self) {
-        MACGUI_DEBUG("MacCallbackButton hitTest id='%s' point=(%.0f,%.0f)", self.widget ? self.widget->id : "-", point.x, point.y);
-    }
+    // if (result == self) {
+    //     MACGUI_DEBUG("MacCallbackButton hitTest id='%s' point=(%.0f,%.0f)", self.widget ? self.widget->id : "-", point.x, point.y);
+    // }
     return result;
 }
 
 - (void)mouseDown:(NSEvent *)event {
-    MACGUI_DEBUG("MacCallbackButton mouseDown id='%s' callback=%s",
-                 self.widget ? self.widget->id : "-",
-                 self.widget && self.widget->cb ? "yes" : "no");
+    // MACGUI_DEBUG("MacCallbackButton mouseDown id='%s' callback=%s",
+    //              self.widget ? self.widget->id : "-",
+    //              self.widget && self.widget->cb ? "yes" : "no");
     if (self.widget && self.widget->cb) {
         self.widget->cb(self.widget->id);
     }
@@ -111,9 +111,9 @@ extern void MacGuiLayout(void);
     if (self.widget && self.widget->cb) {
         if ([sender isKindOfClass:[NSSlider class]]) {
             self.widget->value = (int)[(NSSlider *)sender doubleValue];
-            MACGUI_DEBUG("Slider callback id='%s' value=%d", self.widget->id, self.widget->value);
+            // MACGUI_DEBUG("Slider callback id='%s' value=%d", self.widget->id, self.widget->value);
         } else {
-            MACGUI_DEBUG("Button callback target id='%s'", self.widget->id);
+            // MACGUI_DEBUG("Button callback target id='%s'", self.widget->id);
         }
         self.widget->cb(self.widget->id);
     }
@@ -187,9 +187,9 @@ static MWidget *add_widget(MType type, const char *id, const char *text, GuiCall
     if (!w) return NULL;
     append_child(g_current, w);
     w->registryNext = widgets; widgets = w;
-    NSLog(@"[MacGUI] create %-18s id='%s' parent=%s",
-          mac_type_name(type), id ? id : "-",
-          g_current ? mac_type_name(g_current->type) : "none");
+    // NSLog(@"[MacGUI] create %-18s id='%s' parent=%s",
+    //       mac_type_name(type), id ? id : "-",
+    //       g_current ? mac_type_name(g_current->type) : "none");
     return w;
 }
 
@@ -218,7 +218,7 @@ static int preferred_height(MWidget *w) {
         case M_LABEL: return 24;
         case M_BUTTON: return 34;
         case M_INPUT: return 56;
-        case M_SLIDER: return 56;
+        case M_SLIDER: return w->labelView ? 56 : 34;
         case M_TEXTAREA: return 120;
         case M_IMAGE: return w->height > 0 ? w->height : 120;
         case M_IMAGE_PLACEHOLDER: return 120;
@@ -280,8 +280,8 @@ static void layout_widget(MWidget *w, NSRect rect) {
         return;
     }
 
-    NSLog(@"[MacGUI] layout type=%-18s id='%s' rect=%@",
-          mac_type_name(w->type), w->id[0] ? w->id : "-", NSStringFromRect(rect));
+    // NSLog(@"[MacGUI] layout type=%-18s id='%s' rect=%@",
+    //       mac_type_name(w->type), w->id[0] ? w->id : "-", NSStringFromRect(rect));
     if (w->type == M_GROUP) {
         if (w->innerView) {
             NSRect inner = NSInsetRect(rect, 10, 10);
@@ -344,7 +344,7 @@ static void register_control(MWidget *w, NSView *view) {
 
 int MacGuiCreateApp(const char *title,int width,int height)
 {
-    MACGUI_DEBUG("CreateApp START title='%s' requested=%dx%d", title ? title : "", width, height);
+    // MACGUI_DEBUG("CreateApp START title='%s' requested=%dx%d", title ? title : "", width, height);
     [NSApplication sharedApplication];
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
@@ -416,8 +416,8 @@ void MacGuiCreateButton(const char *id,const char *title,GuiCallback cb) {
     [view setTarget:nil];
     [view setAction:NULL];
 
-    MACGUI_DEBUG("CreateButton id='%s' title='%s' callback=%s",
-                 id ? id : "", title ? title : "", cb ? "yes" : "no");
+    // MACGUI_DEBUG("CreateButton id='%s' title='%s' callback=%s",
+    //              id ? id : "", title ? title : "", cb ? "yes" : "no");
 }
 
 void MacGuiCreateInput(const char *id,const char *title,int length,GuiCallback cb) {
@@ -435,16 +435,21 @@ void MacGuiCreateInput(const char *id,const char *title,int length,GuiCallback c
 }
 
 void MacGuiCreateSlider(const char *id,const char *title,int min,int max,int value,GuiCallback cb) {
-    MWidget *w = add_widget(M_SLIDER, id, title, cb);
+    MWidget *w = add_widget(M_SLIDER, id, title ? title : "", cb);
     if (!w) return;
     w->min = min; w->max = max; w->value = value;
-    NSTextField *label = [NSTextField labelWithString:[NSString stringWithUTF8String:title ? title : ""]];
     NSSlider *view = [[NSSlider alloc] init];
     [view setMinValue:min]; [view setMaxValue:max]; [view setDoubleValue:value];
     [view setContinuous:YES];
     register_control(w, view);
-    w->control = view; w->labelView = label;
-    [mainContent addSubview:label];
+    w->control = view;
+
+    if (title && title[0] != '\0') {
+        NSTextField *label = [NSTextField labelWithString:[NSString stringWithUTF8String:title]];
+        w->labelView = label;
+        [mainContent addSubview:label];
+    }
+
     CallbackTarget *target = [CallbackTarget new]; target.widget = w;
     [view setTarget:target]; [view setAction:@selector(fire:)];
     objc_setAssociatedObject(view, "target", target, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -484,7 +489,7 @@ void MacGuiCreateImage(const char *id, int width, int height, GuiCallback cb) {
 void MacGuiSetText(const char *id,const char *text) {
     MWidget *w = find(id);
     if (!w) {
-        MACGUI_DEBUG("SetText: widget not found id='%s'", id ? id : "");
+        // MACGUI_DEBUG("SetText: widget not found id='%s'", id ? id : "");
         return;
     }
 
@@ -507,9 +512,9 @@ void MacGuiSetText(const char *id,const char *text) {
         [w->view setNeedsDisplay:YES];
     }
 
-    MACGUI_DEBUG("SetText id='%s' value='%s' type=%s view=%s",
-                 id ? id : "", text ? text : "", mac_type_name(w->type),
-                 w->view ? [[w->view className] UTF8String] : "nil");
+    // MACGUI_DEBUG("SetText id='%s' value='%s' type=%s view=%s",
+    //              id ? id : "", text ? text : "", mac_type_name(w->type),
+    //              w->view ? [[w->view className] UTF8String] : "nil");
 }
 
 const char *MacGuiGetText(const char *id) {
@@ -585,6 +590,8 @@ void MacGuiSetColors(const char *id,const char *pen,const char *background) {
 void MacGuiMoveTo(const char *id,int x,int y) {
     MWidget *w = find(id);
     if (w) { w->currentX = x; w->currentY = y; }
+    // NSLog(@"[MacGUI] MoveTo x=%@ y=%@ id=%@",
+    //       @(x), @(y), id ? [NSString stringWithUTF8String:id] : @"-");
 }
 
 void MacGuiLineTo(const char *id,int x,int y) {
@@ -595,6 +602,8 @@ void MacGuiLineTo(const char *id,int x,int y) {
         w->segments = realloc(w->segments, w->segmentCapacity * sizeof(MSegment));
     }
     if (!w->segments) return;
+    // NSLog(@"[MacGUI] LineTo x=%@ y=%@ xp=%@ yp=%@ id=%@",
+    //       @(x), @(y), @(w->currentX), @(w->currentY), id ? [NSString stringWithUTF8String:id] : @"-");
     w->segments[w->segmentCount++] = (MSegment){w->currentX, w->currentY, x, y};
     w->currentX = x; w->currentY = y;
 }
@@ -613,17 +622,17 @@ void MacGuiLayout(void) {
     }
     NSRect bounds = [mainContent bounds];
     NSRect rect = NSInsetRect(bounds, 20, 20);
-    NSLog(@"[MacGUI] layout START bounds=%@ layoutRect=%@ window=%@",
-          NSStringFromRect(bounds), NSStringFromRect(rect), NSStringFromRect(window.frame));
+    // NSLog(@"[MacGUI] layout START bounds=%@ layoutRect=%@ window=%@",
+    //       NSStringFromRect(bounds), NSStringFromRect(rect), NSStringFromRect(window.frame));
     layout_widget(g_root, rect);
     debug_widget_tree(g_root, 0);
-    NSLog(@"[MacGUI] layout END");
+    // NSLog(@"[MacGUI] layout END");
 }
 
 void MacGuiRun(void) {
-    MACGUI_DEBUG("Run START");
+    // MACGUI_DEBUG("Run START");
     MacGuiLayout();
-    MACGUI_DEBUG("Entering NSApplication run loop");
+    // MACGUI_DEBUG("Entering NSApplication run loop");
     [NSApp run];
 }
 
@@ -650,16 +659,16 @@ static void debug_widget_tree(MWidget *w, int depth) {
     char indent[32];
     depth = depth > 30 ? 30 : depth;
     memset(indent, ' ', depth * 2); indent[depth * 2] = '\0';
-    NSLog(@"[MacGUI] %s%s id='%s' visible=%d children=%d frame=(%.0f,%.0f %.0fx%.0f)",
-          indent,
-          mac_type_name(w->type),
-          w->id[0] ? w->id : "-",
-          w->visible,
-          child_count(w),
-          w->view ? NSMinX([w->view frame]) : 0.0,
-          w->view ? NSMinY([w->view frame]) : 0.0,
-          w->view ? NSWidth([w->view frame]) : 0.0,
-          w->view ? NSHeight([w->view frame]) : 0.0);
+    // NSLog(@"[MacGUI] %s%s id='%s' visible=%d children=%d frame=(%.0f,%.0f %.0fx%.0f)",
+    //       indent,
+    //       mac_type_name(w->type),
+    //       w->id[0] ? w->id : "-",
+    //       w->visible,
+    //       child_count(w),
+    //       w->view ? NSMinX([w->view frame]) : 0.0,
+    //       w->view ? NSMinY([w->view frame]) : 0.0,
+    //       w->view ? NSWidth([w->view frame]) : 0.0,
+    //       w->view ? NSHeight([w->view frame]) : 0.0);
     for (MWidget *c = w->first; c; c = c->next)
         debug_widget_tree(c, depth + 1);
 }
@@ -667,8 +676,8 @@ static void debug_widget_tree(MWidget *w, int depth) {
 @implementation MacWindowDelegate
 - (void)windowDidResize:(NSNotification *)notification {
     (void)notification;
-    NSLog(@"[MacGUI] windowDidResize windowFrame=%@ contentFrame=%@",
-          NSStringFromRect(window.frame), NSStringFromRect(mainContent.bounds));
+    // NSLog(@"[MacGUI] windowDidResize windowFrame=%@ contentFrame=%@",
+    //       NSStringFromRect(window.frame), NSStringFromRect(mainContent.bounds));
     MacGuiLayout();
 }
 @end
