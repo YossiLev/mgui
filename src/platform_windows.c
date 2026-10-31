@@ -417,7 +417,7 @@ static void winDrawImagePixels(WWidget *w, HDC dc);
 LRESULT CALLBACK imageControlWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_GUI_REPAINT_IMAGE:
-            InvalidateRect(hwnd, NULL, TRUE);
+            InvalidateRect(hwnd, NULL, FALSE);
             return 0;
 
         case WM_PAINT: {
@@ -426,7 +426,7 @@ LRESULT CALLBACK imageControlWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             WWidget *w = find_in_tree_by_hwnd(g_root, hwnd);
             if (w) {
                 winDrawImagePixels(w, dc);
-                if (w->callback) {
+                if (w->callback && !w->imagePixels) {
                     w->hdc = dc;
                     w->ps = ps;
                     w->callback(w->id);

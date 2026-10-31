@@ -11,6 +11,7 @@ camera::Cam *g_cam = NULL;
 int g_frameCounter = 0;
 Frame g_lastFrame = {0};
 static std::mutex g_frameMutex;
+static std::mutex g_chartMutex;
 
 static void onClick(const char *id) {
     if (strcmp(id, "send") == 0) {
@@ -66,13 +67,12 @@ static void onChange(const char *id) {
 static void cbRepaintImage(const char *id) {
     GuiStartPaint(id);
     if (strcmp(id, "image2") == 0) {
+        std::lock_guard<std::mutex> lock(g_chartMutex);
         GuiSetColors("image2", "#00ff00", "#dd36b3");
         draw_chart("image2", charts[0]);
     } else if (strcmp(id, "image1") == 0) {
         std::lock_guard<std::mutex> lock(g_frameMutex);
-        if (g_lastFrame.pixels) {
-            GuiCopyImage("image1", &g_lastFrame);
-        } else {
+        if (!g_lastFrame.pixels) {
             GuiSetColors("image1", "#ff0000", "#0f00ff");
             GuiMoveTo("image1", 210, 10);
             GuiLineTo("image1", 310, 50);
@@ -170,16 +170,15 @@ void initializeCamera(void)
 {
     g_cam = new camera::Cam();
     g_cam->init(800, 100, [](const Frame& frame) {
-        // Handle the received frame (for demonstration, we just print its size)
-        char msg[256];
-        snprintf(msg, sizeof(msg), "frame %d", g_frameCounter++);
-        GuiSetText("status", msg);
-        frameToChart(frame, charts[0]);
         {
-            std::lock_guard<std::mutex> lock(g_frameMutex);
+            std::lock_guard<std::mutex> chartLock(g_chartMutex);
+            frameToChart(frame, charts[0]);
+        }
+        {
+            std::lock_guard<std::mutex> frameLock(g_frameMutex);
             frameCopyTolastFrame(&frame, &g_lastFrame);
         }
-        GuiRepaintImage("image1");
+        GuiCopyImage("image1", &frame);
         GuiRepaintImage("image2");
     });
     // Simulate camera initialization
