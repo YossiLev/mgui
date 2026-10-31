@@ -3,12 +3,14 @@
 #include <math.h>
 #include "gui.h"
 #include "camApi.h"
+#include <mutex>
 
 // global data for the GUI
 int charts[5][1024];
 camera::Cam *g_cam = NULL;
 int g_frameCounter = 0;
 Frame g_lastFrame = {0};
+static std::mutex g_frameMutex;
 
 static void onClick(const char *id) {
     if (strcmp(id, "send") == 0) {
@@ -67,9 +69,9 @@ static void cbRepaintImage(const char *id) {
         GuiSetColors("image2", "#00ff00", "#dd36b3");
         draw_chart("image2", charts[0]);
     } else if (strcmp(id, "image1") == 0) {
+        std::lock_guard<std::mutex> lock(g_frameMutex);
         if (g_lastFrame.pixels) {
-            Frame frameToDraw = g_lastFrame;
-            GuiCopyImage("image1", &frameToDraw);
+            GuiCopyImage("image1", &g_lastFrame);
         } else {
             GuiSetColors("image1", "#ff0000", "#0f00ff");
             GuiMoveTo("image1", 210, 10);
@@ -173,7 +175,10 @@ void initializeCamera(void)
         snprintf(msg, sizeof(msg), "frame %d", g_frameCounter++);
         GuiSetText("status", msg);
         frameToChart(frame, charts[0]);
-        frameCopyTolastFrame(&frame, &g_lastFrame);
+        {
+            std::lock_guard<std::mutex> lock(g_frameMutex);
+            frameCopyTolastFrame(&frame, &g_lastFrame);
+        }
         GuiRepaintImage("image1");
         GuiRepaintImage("image2");
     });

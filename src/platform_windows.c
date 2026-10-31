@@ -416,7 +416,6 @@ LRESULT CALLBACK imageControlWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     switch (msg) {
         case WM_GUI_REPAINT_IMAGE:
             InvalidateRect(hwnd, NULL, TRUE);
-            UpdateWindow(hwnd);
             return 0;
 
         case WM_PAINT: {
@@ -760,15 +759,17 @@ void WinGuiCopyImage(const char *id, const Frame *frame) {
     if (!pixels) return;
     memcpy(pixels, frame->pixels, pixelCount);
 
+    EnterCriticalSection(&winImageCriticalSection);
     if (w->imagePixels) free(w->imagePixels);
     w->imagePixels = pixels;
     w->imageWidth = frame->width;
     w->imageHeight = frame->height;
+    LeaveCriticalSection(&winImageCriticalSection);
 
-    if (w->hwnd) {
+    if (w->hwnd)
         PostMessageA(w->hwnd, WM_GUI_REPAINT_IMAGE, 0, 0);
-    }
 }
+
 void WinGuiBringToFront(const char *id) {
     WWidget *w = find(id);
     if (!w) return;
@@ -820,11 +821,18 @@ void WinGuiRun(void)
 }
 
 static void winDrawImagePixels(WWidget *w, HDC dc) {
-    if (!w || !w->imagePixels || w->imageWidth <= 0 || w->imageHeight <= 0) return;
+    if (!winImageCriticalSectionInitialized || !w || !w->imagePixels ||
+        w->imageWidth <= 0 || w->imageHeight <= 0)
+        return;
+
+    EnterCriticalSection(&winImageCriticalSection);
 
     size_t bmiSize = sizeof(BITMAPINFOHEADER) + 256 * sizeof(RGBQUAD);
     BITMAPINFO *bmi = (BITMAPINFO *)calloc(1, bmiSize);
-    if (!bmi) return;
+    if (!bmi) {
+        LeaveCriticalSection(&winImageCriticalSection);
+        return;
+    }
 
     bmi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmi->bmiHeader.biWidth = w->imageWidth;
@@ -840,13 +848,13 @@ static void winDrawImagePixels(WWidget *w, HDC dc) {
         bmi->bmiColors[i].rgbBlue = (BYTE)i;
     }
 
-    SetDIBitsToDevice(dc,
-                      0, 0,
-                      w->imageWidth, w->imageHeight,
-                      0, 0,
-                      0, w->imageHeight,
-                      w->imagePixels,
-                      bmi,
-                      DIB_RGB_COLORS);
+    SetDIBitsToDevice(dc, 0, 0, w->imageWidth, w->imageHeight,
+                      0, 0, 0, w->imageHeight,
+                      w->imagePixels, bmi, DIB_RGB_COLORS);
+
+    LeaveCriticalSection(&winImageCriticalSection);
     free(bmi);
 }
+
+static CRITICAL_SECTION winImageCriticalSection;
+static int winImageCriticalSectionInitialized;
