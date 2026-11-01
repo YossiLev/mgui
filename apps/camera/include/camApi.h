@@ -23,7 +23,6 @@ public:
     int stop_camera_communication();
     int start_camera_communication();
     int doSerialCommand(char *command, char *resp);
-    bool check_status(MCSTATUS status, const char* name);
     void resetCounts();
     void recordSample();
     //void AcquisitionThread();

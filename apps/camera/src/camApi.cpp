@@ -19,8 +19,6 @@ std::atomic<bool> g_running(false);
 //std::mutex g_imageMutex;
 
 std::vector<uint16_t> g_image;
-// int g_image_max[2000];
-// int g_image_min[2000];
 
 int g_imageWidth  = 0;
 int g_imageHeight = 0;
@@ -34,7 +32,19 @@ camera::Cam *g_single_cam = nullptr;
 MCHANDLE g_channel = 0;
 MCHANDLE g_surface[SURFACE_COUNT];
 
+// ------------------------------------------------------------
+// Simple status checker
+// ------------------------------------------------------------
 
+bool check_status(MCSTATUS status, const char* name)
+{
+    if (status != MC_OK) {
+        printf("MultiCam error at %s: status = %d\n",  name, status);
+        return false;
+    }
+
+    return true;
+}
 // ------------------------------------------------------------
 // Acquisition thread
 // ------------------------------------------------------------
@@ -48,19 +58,14 @@ void AcquisitionThread()
         MCSIGNALINFO signal_info = {};
 
         MCSTATUS status = McWaitSignal(
-            g_channel,
-            MC_SIG_SURFACE_PROCESSING,
-            1000,
-            &signal_info);
+            g_channel, MC_SIG_SURFACE_PROCESSING, 1000, &signal_info);
 
         surface = (MCHANDLE)signal_info.SignalInfo;
 
-        if (status != MC_OK)
-        {
+        if (status != MC_OK) {
             if (!g_running)
                 status = McSetParamInt(surface, MC_SurfaceState, MC_SurfaceState_FREE);
                 break;
-
             continue;
         }        
 
@@ -81,50 +86,37 @@ void AcquisitionThread()
         int height = 0;
         int pitch = 0;
 
-        status = McGetParamInt(surface, MC_SurfaceSizeX, &width);
-        if (status != MC_OK) {
-            printf("MC_SurfaceSizeX failed: %d\n", status);
+        if (!check_status(McGetParamInt(surface, MC_SurfaceSizeX, &width), "MC_SurfaceSizeX")) {
             continue;
         }
 
-        status = McGetParamInt(surface, MC_SurfaceSizeY, &height);
-        if (status != MC_OK) {
-            printf("MC_SurfaceSizeY failed: %d\n", status);
+        if (!check_status(McGetParamInt(surface, MC_SurfaceSizeY, &height), "MC_SurfaceSizeY")) {
             continue;
         }
 
-        status = McGetParamInt(surface, MC_SurfacePitch, &pitch);
-        if (status != MC_OK) {
-            printf("MC_SurfacePitch failed: %d\n", status);
+        if (!check_status(McGetParamInt(surface, MC_SurfacePitch, &pitch), "MC_SurfacePitch")) {
             continue;
         }
         
-
         // ----------------------------------------------------
         // Get image address.
         // ----------------------------------------------------
-
         void* address = nullptr;
 
         status = McGetParamPtr(surface, MC_SurfaceAddr, &address);
 
-        if (status != MC_OK)
-        {
+        if (status != MC_OK) {
             printf("MC_SurfaceAddr failed: %d\n", status);
             continue;
         }
 
-
-        if (address != nullptr)
-        {
+        if (address != nullptr) {
             // ------------------------------------------------
             // Copy surface into our own CPU buffer.
             //
             // For now assume tightly packed 16-bit pixels.
             // We can add pitch handling later.
             // ------------------------------------------------
-
-           // std::lock_guard<std::mutex> lock(g_imageMutex);
 
             g_imageWidth  = width;
             g_imageHeight = height;   
@@ -134,17 +126,6 @@ void AcquisitionThread()
             memcpy(g_image.data(), address, (size_t)width * (size_t)height * 2);
 
             uint16_t *data = (uint16_t *)address;
-            // for (int ih = 0; ih < height; ih++) {
-            //     uint16_t *line = data + ih * g_imageWidth;
-            //     for (int iw = 0; iw < width; iw++) {
-            //         if (g_image_min[iw] > line[iw]) {
-            //             g_image_min[iw] = line[iw];
-            //         }
-            //         if (g_image_max[iw] < line[iw]) {
-            //             g_image_max[iw] = line[iw];
-            //         }
-            //     }
-            // }
             if (g_recordState) {
                 uint16_t *line = data + (height / 2) * g_imageWidth;
                 int delta = g_imageWidth / 12;
@@ -163,9 +144,7 @@ void AcquisitionThread()
         // We are finished using the MultiCam surface.
         // Return it to MultiCam.
         // ----------------------------------------------------
-
         status = McSetParamInt(surface, MC_SurfaceState, MC_SurfaceState_FREE);
-
         if (status != MC_OK) {
             printf("MC_SurfaceState_FREE failed: %d\n", status);
         }
@@ -330,21 +309,6 @@ int Cam::doSerialCommand(char *command, char *resp) {
         return -10;
     }
     return 0;
-}
-
-
-// ------------------------------------------------------------
-// Simple status checker
-// ------------------------------------------------------------
-
-bool Cam::check_status(MCSTATUS status, const char* name)
-{
-    if (status != MC_OK) {
-        printf("MultiCam error at %s: status = %d\n",  name, status);
-        return false;
-    }
-
-    return true;
 }
 
 void Cam::resetCounts() {
