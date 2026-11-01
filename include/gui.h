@@ -51,6 +51,7 @@ void GuiCreateImagePlaceholder(const char *id, const char *title);
 void GuiCreateImage(const char *i, int w, int h,GuiCallback c);
 void GuiStartPaint(const char *i);
 void GuiSetColors(const char *i, const char *p, const char *b);
+void GuiClear(const char *i);
 void GuiMoveTo(const char *i, int x, int y);
 void GuiLineTo(const char *i, int x, int y);
 void GuiCopyImage(const char *i, const Frame8 *f);

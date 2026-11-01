@@ -19,8 +19,8 @@ std::atomic<bool> g_running(false);
 //std::mutex g_imageMutex;
 
 std::vector<uint16_t> g_image;
-int g_image_max[2000];
-int g_image_min[2000];
+// int g_image_max[2000];
+// int g_image_min[2000];
 
 int g_imageWidth  = 0;
 int g_imageHeight = 0;
@@ -134,17 +134,17 @@ void AcquisitionThread()
             memcpy(g_image.data(), address, (size_t)width * (size_t)height * 2);
 
             uint16_t *data = (uint16_t *)address;
-            for (int ih = 0; ih < height; ih++) {
-                uint16_t *line = data + ih * g_imageWidth;
-                for (int iw = 0; iw < width; iw++) {
-                    if (g_image_min[iw] > line[iw]) {
-                        g_image_min[iw] = line[iw];
-                    }
-                    if (g_image_max[iw] < line[iw]) {
-                        g_image_max[iw] = line[iw];
-                    }
-                }
-            }
+            // for (int ih = 0; ih < height; ih++) {
+            //     uint16_t *line = data + ih * g_imageWidth;
+            //     for (int iw = 0; iw < width; iw++) {
+            //         if (g_image_min[iw] > line[iw]) {
+            //             g_image_min[iw] = line[iw];
+            //         }
+            //         if (g_image_max[iw] < line[iw]) {
+            //             g_image_max[iw] = line[iw];
+            //         }
+            //     }
+            // }
             if (g_recordState) {
                 uint16_t *line = data + (height / 2) * g_imageWidth;
                 int delta = g_imageWidth / 12;
@@ -156,7 +156,6 @@ void AcquisitionThread()
                 g_recordState = 0;
             }
         }
-
 
         // ----------------------------------------------------
         // VERY IMPORTANT:
@@ -352,12 +351,12 @@ void Cam::resetCounts() {
     surfaces_counter = 0;
     paints_counter = 0;
 
-    for (int i = 0 ; i < sizeof(g_image_min) / sizeof(g_image_min[0]) ; i++) {
-        g_image_min[i] = 999999;
-    }
-    for (int i = 0 ; i < sizeof(g_image_max) / sizeof(g_image_max[0]); i++) {
-        g_image_max[i] = 0;
-    }
+    // for (int i = 0 ; i < sizeof(g_image_min) / sizeof(g_image_min[0]) ; i++) {
+    //     g_image_min[i] = 999999;
+    // }
+    // for (int i = 0 ; i < sizeof(g_image_max) / sizeof(g_image_max[0]); i++) {
+    //     g_image_max[i] = 0;
+    // }
 }
 
 void Cam::recordSample() {

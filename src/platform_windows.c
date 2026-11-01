@@ -731,7 +731,7 @@ static COLORREF parseColor(const char *s, COLORREF fallback) {
 void WinGuiSetColors(const char *id, const char *pc, const char *bc) {
     WWidget *w = find(id);
     if (!w) return;
-    HPEN hPen = CreatePen(PS_SOLID, 3, parseColor(pc, RGB(0, 0, 0)));
+    HPEN hPen = CreatePen(PS_SOLID, 2, parseColor(pc, RGB(0, 0, 0)));
     HPEN hOldPen = (HPEN)SelectObject(w->hdc, hPen);
     if (w->hOldPen == NULL) {
         w->hOldPen = hOldPen;
@@ -745,6 +745,13 @@ void WinGuiSetColors(const char *id, const char *pc, const char *bc) {
     } else if (w->hOldBrush != hOldBrush) {
         DeleteObject(hOldBrush);
     }
+}
+void WinGuiClear(const char *id) {
+    WWidget *w = find(id);
+    if (!w) return; 
+    RECT rect;
+    GetClientRect(w->hwnd, &rect);
+    PatBlt(w->hdc, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, PATCOPY);
 }
 void WinGuiMoveTo(const char *id, int x, int y) {
     WWidget *w = find(id);

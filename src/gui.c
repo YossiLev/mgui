@@ -17,6 +17,7 @@ extern void WinGuiCreateImagePlaceholder(const char *, const char *);
 extern void WinGuiCreateImage(const char *i, int w, int h, GuiCallback c);
 extern void WinGuiStartPaint(const char *);
 extern void WinGuiSetColors(const char *, const char *, const char *);
+extern void WinGuiClear(const char *);
 extern void WinGuiMoveTo(const char *, int, int);
 extern void WinGuiLineTo(const char *, int, int);
 extern void WinGuiCopyImage(const char *, const Frame8 *);
@@ -49,6 +50,7 @@ extern void MacGuiCreateImagePlaceholder(const char *, const char *);
 extern void MacGuiCreateImage(const char *i, int w, int h, GuiCallback c);
 extern void MacGuiStartPaint(const char *);
 extern void MacGuiSetColors(const char *, const char *, const char *);
+extern void MacGuiClear(const char *);
 extern void MacGuiMoveTo(const char *, int, int);
 extern void MacGuiLineTo(const char *, int, int);
 extern void MacGuiCopyImage(const char *, const Frame8 *);
@@ -120,6 +122,7 @@ void GuiCreateImagePlaceholder(const char *i,const char *t){F(CreateImagePlaceho
 void GuiCreateImage(const char *i, int w, int h,GuiCallback c){F(CreateImage)(i,w,h,c);}
 void GuiStartPaint(const char *i){F(StartPaint)(i);}
 void GuiSetColors(const char *i, const char *p, const char *b){F(SetColors)(i,p,b);}
+void GuiClear(const char *i){F(Clear)(i);}
 void GuiMoveTo(const char *i, int x, int y){F(MoveTo)(i,x,y);}
 void GuiLineTo(const char *i, int x, int y){F(LineTo)(i,x,y);}
 void GuiCopyImage(const char *i, const Frame8 *f){F(CopyImage)(i,f);}
