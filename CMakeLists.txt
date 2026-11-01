@@ -29,6 +29,7 @@ if(DEFINED GUI_APP)
         add_executable(mgui
             apps/camera/src/main.cpp
             apps/camera/src/camApi.cpp
+            apps/camera/src/cameraSerial.cpp
             src/gui.c
         )
         set_source_files_properties(apps/camera/src/main.c PROPERTIES LANGUAGE CXX)
@@ -44,7 +45,9 @@ endif()
 if(GUI_PLATFORM STREQUAL "WINDOWS")
     target_sources(mgui PRIVATE src/platform_windows.c)
     target_compile_definitions(mgui PRIVATE PLATFORM=PLATFORM_WINDOWS)
-    target_link_libraries(mgui PRIVATE user32 gdi32 comctl32)
+    target_link_libraries(mgui PRIVATE user32 gdi32 comctl32
+        "C:/Program Files (x86)/Euresys/MultiCam/Lib/amd64/MultiCam.lib"
+    )
 
 elseif(GUI_PLATFORM STREQUAL "MACOS")
     enable_language(OBJC)
@@ -68,4 +71,5 @@ endif()
 
 target_include_directories(mgui PRIVATE include 
     apps/camera/include
+    "C:/Program Files (x86)/Euresys/MultiCam/Include"
 )
