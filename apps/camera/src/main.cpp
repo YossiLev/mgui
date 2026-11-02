@@ -16,11 +16,10 @@ static std::mutex g_chartMutex;
 
 static void onClick(const char *id) {
     if (strcmp(id, "send") == 0) {
+        char resp[5000];
         const char *command = GuiGetText("command");
-        char msg[256];
-        const char *response = "ok"; // Simulated response for demonstration
-        snprintf(msg, sizeof(msg), "%s -> %s", command, response);
-        GuiSetText("response", msg);
+        doSerialCommand(char *command, char *resp) {
+        GuiSetText("response", resp);
     }
 }
 
