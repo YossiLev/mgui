@@ -6,11 +6,21 @@
 #include "camApi.h"
 #include <mutex>
 
+// slider for exposure "exp 435"    (40 1000)
+// slide fo digital gain "gain:digital:mult 34"   (1-256)
+// capacitor mode
+
 // global data for the GUI
-int charts[5][1024];
-camera::Cam *g_cam = NULL;
-int g_frameCounter = 0;
-Frame g_lastFrame = {0};
+static int charts[5][1024];
+static int **recorded_lines = nullptr;
+static int n_recorded_lines = 0;
+static int m_recorded_lines = 0;
+static int record_state = 0;
+static char *recordedDataStr = nullptr;
+
+static camera::Cam *g_cam = NULL;
+static int g_frameCounter = 0;
+static Frame g_lastFrame = {0};
 static std::mutex g_frameMutex;
 static std::mutex g_chartMutex;
 
@@ -18,23 +28,84 @@ static void onClick(const char *id) {
     if (strcmp(id, "send") == 0) {
         char resp[5000];
         const char *command = GuiGetText("command");
-        doSerialCommand(char *command, char *resp) {
+        g_cam->doSerialCommand(command, resp);
         GuiSetText("response", resp);
     }
 }
 
+void serializeRecordedLines() {
+    if (n_recorded_lines <= 0) {
+        return;
+    }
+    if (recordedDataStr) {
+        free(recordedDataStr);
+    }
+    int mStr = n_recorded_lines * 100;
+    recordedDataStr = (char *)malloc(mStr);
+    recordedDataStr[0] = '\0';
+    char msg[200];
+    for (int il = 0; il < n_recorded_lines; il++) {
+        int *line = recorded_lines[il]; 
+        for (int i = 50; i < 1024; i += 100) {
+            sprintf(msg, "%d, ", line[i]);
+            strcat(recordedDataStr, msg);
+        }
+        strcat(recordedDataStr, "  -   \r\n");
+    }
+    GuiSetText("log", recordedDataStr);
+}
+
+static void resetRecordedLines() {
+    if (m_recorded_lines > 0) {
+        for (int il = 0; il < n_recorded_lines; il++) {
+            free(recorded_lines[il]);
+        }
+        n_recorded_lines = 0;
+        free(recorded_lines);
+        recorded_lines = nullptr;
+    }
+    GuiSetText("log", "");
+}
+
+static void addRecordedLine(int *line) {
+    if (recorded_lines == nullptr) {
+        m_recorded_lines = 10;
+        recorded_lines = (int **)malloc(m_recorded_lines * sizeof(int *));
+        for (int il = 0; il < m_recorded_lines; il++) {
+            recorded_lines[il] = nullptr;
+        }
+    } else if (n_recorded_lines >= m_recorded_lines) {
+        int new_m_recorded_lines = m_recorded_lines * 2;
+        int **new_recorded_lines = (int **)malloc(new_m_recorded_lines * sizeof(int *));
+        for (int il = 0; il < m_recorded_lines; il++) {
+            new_recorded_lines[il] = recorded_lines[il];
+            new_recorded_lines[il + m_recorded_lines] = nullptr;
+        }
+        free(recorded_lines);
+        recorded_lines = new_recorded_lines;
+        m_recorded_lines = new_m_recorded_lines;
+    }
+    recorded_lines[n_recorded_lines] = (int *)malloc(sizeof(int) * 1024);
+    int * new_line = recorded_lines[n_recorded_lines++];
+    for (int i = 0; i < 1024; i++) {
+        new_line[i] = line[i];
+    }
+}
 static void onClickCam(const char *id) {
+    // button START
     if (strcmp(id, "startCam") == 0) {
         if (g_cam) {
             g_frameCounter = 0;
             g_cam->start();
         }
         GuiSetText("status", "Start Camera");
+    // button STOP
     } else if (strcmp(id, "stopCam") == 0) {
         if (g_cam) {
             g_cam->stop();
         }
         GuiSetText("status", "Stop Camera");
+    // button RESET
     } else if (strcmp(id, "resetCam") == 0) {
         int *chartMin = charts[1];
         int *chartMax = charts[2];
@@ -42,24 +113,36 @@ static void onClickCam(const char *id) {
             chartMin[i] = 99999;
             chartMax[i] = 0;
         }
+        resetRecordedLines();
         GuiSetText("status", "Reset Camera");
+    // button RECORD
     } else if (strcmp(id, "recordLine") == 0) {
         fprintf(stderr, "[Dem] Record Line\n"); fflush(stderr);
+        record_state = 1;
         GuiSetText("status", "Record Line");
     }
 }
 
 static void onChange(const char *id) {
+    char resp[5000];
+    char msg[256];
+
     if (!id) return;
     
     if (strcmp(id, "exposure") == 0) {
-        char msg[256];
-        snprintf(msg, sizeof(msg), "Exposure %d", GuiGetValue(id));
+        int value = GuiGetValue(id);
+        snprintf(msg, sizeof(msg), "Exp %d", value);
+        g_cam->doSerialCommand(msg, resp);
+        GuiSetText("response", resp);
+        snprintf(msg, sizeof(msg), "Exposure %d", value);
         GuiSetText("exposureValue", msg);
-    } else if (strcmp(id, "pageLength") == 0) {
-        char msg[256];
-        snprintf(msg, sizeof(msg), "Page Length %d", GuiGetValue(id));
-        GuiSetText("pageLengthValue", msg);
+    } else if (strcmp(id, "digitalGain") == 0) {
+        int value = GuiGetValue(id);
+        snprintf(msg, sizeof(msg), "gain:digital:mult %d", value);
+        g_cam->doSerialCommand(msg, resp);
+        GuiSetText("response", resp);
+        snprintf(msg, sizeof(msg), "Digital Gain %d", value);
+        GuiSetText("digitalGainValue", msg);
     }
 }
  static void draw_chart(const char *id, int chart[1024]) {
@@ -113,8 +196,8 @@ void createGui(void)
                     GuiCreateSlider("exposure", "", 0, 500, 50, onChange);
                 GuiEndVertical();
                 GuiBeginVertical();
-                    GuiCreateLabel("pageLengthValue", "Page Length");
-                    GuiCreateSlider("pageLength", "", 0, 500, 50, onChange);
+                    GuiCreateLabel("digitalGainValue", "Digital Gain");
+                    GuiCreateSlider("digitalGain", "", 1, 256, 50, onChange);
                 GuiEndVertical();
             GuiEndHorizontal();
 
@@ -137,7 +220,7 @@ void createGui(void)
         GuiCreateImage("image1", 320, 200, cbRepaintImage);
         GuiCreateImage("image2", 320, 200, cbRepaintImage);
 
-        GuiCreateTextArea("log", 8, 80);
+        GuiCreateTextArea("log", 20, 100);
 
     GuiEndVertical();
 }
@@ -164,6 +247,10 @@ void frameToCharts(const Frame& frame, int chartsData[5][1024]) {
     int *chartMax = chartsData[2];
     for (int i = 0; i < frame.width; ++i) {
         chart[i] = static_cast<int>(frame.pixels[i]);
+    }
+    if (record_state) {
+        addRecordedLine(chart);
+        record_state = 0;
     }
     for (int ih = 0; ih < frame.height; ih++) {
         u_int16_t *line = frame.pixels + ih * frame.width;
@@ -220,6 +307,7 @@ void initializeCamera(void)
         GuiSetText("status", msg);
         GuiCopyImage("image1", makeFrame8(&frame));
         GuiRepaintImage("image2");
+        serializeRecordedLines();
     });
     // Simulate camera initialization
     GuiSetText("status", "Camera initialized");

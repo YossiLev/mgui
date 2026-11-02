@@ -22,10 +22,9 @@ public:
 
     int stop_camera_communication();
     int start_camera_communication();
-    int doSerialCommand(char *command, char *resp);
+    int doSerialCommand(const char *command, char *resp);
     void resetCounts();
     void recordSample();
-    //void AcquisitionThread();
     void StartAcquisition();
     void StopAcquisition();
     void initCamera();

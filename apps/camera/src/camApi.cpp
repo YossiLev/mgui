@@ -274,7 +274,7 @@ int Cam::start_camera_communication() {
     return 0;
 }
 
-int Cam::doSerialCommand(char *command, char *resp) {
+int Cam::doSerialCommand(const char *command, char *resp) {
     std::string error;
 
     if (!CameraSerial::WriteCommand(command, error)) {
@@ -314,18 +314,10 @@ int Cam::doSerialCommand(char *command, char *resp) {
 void Cam::resetCounts() {
     surfaces_counter = 0;
     paints_counter = 0;
-
-    // for (int i = 0 ; i < sizeof(g_image_min) / sizeof(g_image_min[0]) ; i++) {
-    //     g_image_min[i] = 999999;
-    // }
-    // for (int i = 0 ; i < sizeof(g_image_max) / sizeof(g_image_max[0]); i++) {
-    //     g_image_max[i] = 0;
-    // }
 }
 
 void Cam::recordSample() {
     g_recordState = 1;
-
 }
 
 
